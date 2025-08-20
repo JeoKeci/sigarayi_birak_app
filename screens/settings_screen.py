@@ -5,13 +5,14 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.textfield import MDTextField
-# DEĞİŞİKLİK: MDTextButton'ı da içe aktarıyoruz
 from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDTextButton
 from kivymd.uix.pickers import MDDatePicker
 from kivymd.uix.snackbar import MDSnackbar
 from kivymd.uix.label import MDLabel
 from kivymd.uix.selectioncontrol import MDSwitch
 from datetime import datetime
+# YENİ: Plyer kütüphanesinden email özelliğini içe aktarıyoruz
+from plyer import email
 
 class SettingsScreen(MDScreen):
     def __init__(self, **kwargs):
@@ -46,6 +47,13 @@ class SettingsScreen(MDScreen):
             pos_hint={'center_x': 0.5},
             on_release=lambda x: self.go_to_privacy_policy()
         )
+        
+        # YENİ: Geri Bildirim Butonu
+        feedback_button = MDTextButton(
+            text="Geri Bildirim Gönder",
+            pos_hint={'center_x': 0.5},
+            on_release=lambda x: self.send_feedback_email()
+        )
 
         content_layout.add_widget(self.cigarettes_per_day_field)
         content_layout.add_widget(self.price_per_pack_field)
@@ -53,10 +61,27 @@ class SettingsScreen(MDScreen):
         content_layout.add_widget(theme_layout)
         content_layout.add_widget(date_button)
         content_layout.add_widget(save_button)
+        content_layout.add_widget(feedback_button) # Yeni butonu ekliyoruz
         content_layout.add_widget(privacy_button)
         
         root_layout.add_widget(content_layout)
         self.add_widget(root_layout)
+
+    # --- YENİ FONKSİYON ---
+    def send_feedback_email(self):
+        try:
+            email.send(
+                recipient='karakas.halil@gmail.com', # Kendi e-posta adresinizi buraya yazın
+                subject='Bırakma Yardımcısı - Geri Bildirim',
+                text='Merhaba,\n\nUygulama hakkındaki geri bildirimim aşağıdadır:\n\n'
+            )
+        except Exception as e:
+            # Telefonda e-posta uygulaması kurulu değilse veya bir hata olursa
+            snackbar = MDSnackbar()
+            snackbar.text = "E-posta uygulaması açılamadı."
+            snackbar.open()
+            print(f"E-posta gönderme hatası: {e}")
+    # ---------------------------
 
     def on_enter(self):
         app = MDApp.get_running_app()
