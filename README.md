@@ -42,7 +42,7 @@ Projeyi yerel makinenizde çalıştırmak için aşağıdaki adımları izleyin:
 
 1.  **Projeyi Klonlayın (veya dosyaları indirin):**
     ```bash
-    git clone [https://github.com/kullanici-adiniz/sigarayi-birakma-uygulamasi.git](https://github.com/kullanici-adiniz/sigarayi-birakma-uygulamasi.git)
+    git clone [https://github.com/jeokeci/sigarayi-birakma-uygulamasi.git](https://github.com/jeokeci/sigarayi-birakma-uygulamasi.git)
     cd sigarayi-birakma-uygulamasi
     ```
 
