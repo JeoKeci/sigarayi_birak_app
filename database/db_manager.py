@@ -33,8 +33,6 @@ class DatabaseManager:
                     personal_reasons TEXT DEFAULT ''
                 )
             """)
-            
-            # YENİ: Arzulama anlarını kaydetmek için yeni bir tablo
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cravings_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +40,14 @@ class DatabaseManager:
                 )
             """)
             
-            # ... (ALTER TABLE komutları aynı kalıyor) ...
+            # Günlük sigara girişlerini tutacak yeni tablo
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS daily_log (
+                    log_date TEXT PRIMARY KEY,
+                    cigarette_count INTEGER NOT NULL
+                )
+            """)
+            
             try:
                 self.cursor.execute("ALTER TABLE user_profile ADD COLUMN theme_style TEXT DEFAULT 'Dark'")
             except sqlite3.OperationalError: pass
@@ -62,13 +67,13 @@ class DatabaseManager:
                 INSERT OR REPLACE INTO user_profile (id, quit_date, cigarettes_per_day, price_per_pack, theme_style, personal_reasons)
                 VALUES (1, ?, ?, ?, ?, ?)
             """, (quit_date, cigarettes_per_day, price_per_pack, theme_style, personal_reasons))
+            print("Kullanıcı profili başarıyla kaydedildi.")
         except Exception as e:
             print(f"Profil kaydetme hatası: {e}")
         finally:
             self._close_connection()
 
     def load_user_profile(self):
-        # ... (Bu fonksiyon aynı kalıyor) ...
         profile = None
         try:
             self._get_connection()
@@ -80,11 +85,7 @@ class DatabaseManager:
             self._close_connection()
         return profile
         
-    # --- YENİ FONKSİYON ---
     def log_craving_event(self, timestamp):
-        """
-        Veritabanına yeni bir arzulama (kriz anı) kaydı ekler.
-        """
         try:
             self._get_connection()
             self.cursor.execute("INSERT INTO cravings_log (craving_timestamp) VALUES (?)", (timestamp,))
@@ -95,18 +96,90 @@ class DatabaseManager:
             self._close_connection()
 
     def load_craving_logs(self):
-        """
-        Tüm kriz anı kayıtlarını veritabanından yükler.
-        En yeniden en eskiye doğru sıralar.
-        """
         logs = []
         try:
             self._get_connection()
-            # ORDER BY ... DESC ile en yeni kayıtların en üstte gelmesini sağlıyoruz.
             self.cursor.execute("SELECT craving_timestamp FROM cravings_log ORDER BY craving_timestamp DESC")
-            logs = self.cursor.fetchall() # Tüm sonuçları al
+            logs = self.cursor.fetchall()
         except Exception as e:
             print(f"Kriz günlüğü yükleme hatası: {e}")
         finally:
             self._close_connection()
         return logs
+
+    def add_daily_log(self, date_str, count):
+        """
+        Veritabanına yeni bir günlük sigara kaydı ekler.
+        """
+        try:
+            self._get_connection()
+            self.cursor.execute("INSERT INTO daily_log (log_date, cigarette_count) VALUES (?, ?)", (date_str, count))
+            print(f"Günlük giriş kaydedildi: {date_str} - {count} adet.")
+        except Exception as e:
+            print(f"Günlük giriş kaydetme hatası: {e}")
+        finally:
+            self._close_connection()
+
+    def check_daily_log_exists(self, date_str):
+        """
+        Belirtilen tarih için bir girişin olup olmadığını kontrol eder.
+        """
+        log_exists = False
+        try:
+            self._get_connection()
+            self.cursor.execute("SELECT 1 FROM daily_log WHERE log_date = ?", (date_str,))
+            if self.cursor.fetchone():
+                log_exists = True
+        except Exception as e:
+            print(f"Günlük giriş kontrol hatası: {e}")
+        finally:
+            self._close_connection()
+        return log_exists
+    
+    def load_all_daily_logs(self):
+        """
+        Tüm günlük sigara girişlerini veritabanından yükler.
+        En yeniden en eskiye doğru sıralar.
+        """
+        logs = []
+        try:
+            self._get_connection()
+            self.cursor.execute("SELECT log_date, cigarette_count FROM daily_log ORDER BY log_date DESC")
+            logs = self.cursor.fetchall()
+        except Exception as e:
+            print(f"Geçmiş günlük girişleri yükleme hatası: {e}")
+        finally:
+            self._close_connection()
+        return logs
+
+    def update_daily_log(self, date_str, new_count):
+        """
+        Belirli bir tarihteki sigara sayısını günceller.
+        """
+        try:
+            self._get_connection()
+            self.cursor.execute("UPDATE daily_log SET cigarette_count = ? WHERE log_date = ?", (new_count, date_str))
+            print(f"Günlük giriş güncellendi: {date_str} - {new_count} adet.")
+        except Exception as e:
+            print(f"Günlük giriş güncelleme hatası: {e}")
+        finally:
+            self._close_connection()
+    
+     # --- YENİ FONKSİYON ---
+    def get_last_smoked_date(self):
+        """
+        Sigara içildiği girilen en son günü bulur.
+        """
+        last_date = None
+        try:
+            self._get_connection()
+            # cigarette_count > 0 olan kayıtlar arasından en son tarihi seçiyoruz.
+            self.cursor.execute("SELECT MAX(log_date) FROM daily_log WHERE cigarette_count > 0")
+            result = self.cursor.fetchone()
+            if result and result[0]:
+                last_date = result[0]
+        except Exception as e:
+            print(f"Son sigara içilen günü bulma hatası: {e}")
+        finally:
+            self._close_connection()
+        return last_date
